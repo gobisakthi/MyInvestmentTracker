@@ -5,6 +5,7 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.temporal.ChronoUnit
 
 object InterestCalculationEngine {
 
@@ -39,8 +40,21 @@ object InterestCalculationEngine {
             )
         }
 
-        val firstMonth = firstAccrualYearMonth(input.openingBalanceDate)
-        val asOfMonth = YearMonth.from(asOfDate)
+        val effectiveAsOf = input.accrualEndDate?.let { end -> minOf(asOfDate, end) } ?: asOfDate
+        val firstMonth = when (input.accountType) {
+            InvestmentType.FD,
+            InvestmentType.RD,
+            -> YearMonth.from(input.openingBalanceDate)
+            InvestmentType.PPF,
+            InvestmentType.SSA,
+            InvestmentType.PF,
+            InvestmentType.STOCKS,
+            InvestmentType.METALS,
+            InvestmentType.REAL_ESTATE,
+            InvestmentType.NPS,
+            -> firstAccrualYearMonth(input.openingBalanceDate)
+        }
+        val asOfMonth = YearMonth.from(effectiveAsOf)
         if (asOfMonth.isBefore(firstMonth)) {
             return SimulationResult(
                 buildOk(input, input.openingBalanceMinor, 0L, 0L, 0L, 0L),
@@ -85,17 +99,26 @@ object InterestCalculationEngine {
             val fullMonthInterest = monthlyInterestMinor(eligibleMinor, rate)
 
             val monthFullyComplete = month.isBefore(asOfMonth) ||
-                (month == asOfMonth && asOfDate.dayOfMonth == month.lengthOfMonth())
+                (month == asOfMonth && isMonthAccrualComplete(month, effectiveAsOf, input.accrualEndDate))
 
             if (month == asOfMonth && !monthFullyComplete) {
-                val elapsedDays = asOfDate.dayOfMonth - 1
-                val daysInMonth = month.lengthOfMonth()
-                provisionalCurrentMonthMinor = if (elapsedDays <= 0) {
+                val elapsedDays = provisionalElapsedDays(
+                    month = month,
+                    asOf = effectiveAsOf,
+                    openingDate = input.openingBalanceDate,
+                    accrualEnd = input.accrualEndDate,
+                )
+                val daysInMonth = accrualDaysInMonth(
+                    month = month,
+                    openingDate = input.openingBalanceDate,
+                    accrualEnd = input.accrualEndDate,
+                )
+                provisionalCurrentMonthMinor = if (elapsedDays <= 0L || daysInMonth <= 0L) {
                     0L
                 } else {
                     fullMonthInterest
-                        .multiply(BigDecimal.valueOf(elapsedDays.toLong()))
-                        .divide(BigDecimal.valueOf(daysInMonth.toLong()), 12, RoundingMode.HALF_UP)
+                        .multiply(BigDecimal.valueOf(elapsedDays))
+                        .divide(BigDecimal.valueOf(daysInMonth), 12, RoundingMode.HALF_UP)
                         .toMinorHalfUp()
                 }
                 monthlyPoints += MonthlyInterestPoint(month, provisionalCurrentMonthMinor, isProvisional = true)
@@ -143,6 +166,9 @@ object InterestCalculationEngine {
             if (input.accountType == InvestmentType.PF) {
                 add("PF/EPF value is an estimate from a single monthly deposit; not an official EPFO statement.")
             }
+            if (input.accountType == InvestmentType.FD || input.accountType == InvestmentType.RD) {
+                add("FD/RD estimate uses monthly rate with daily proration in the current month (like PPF).")
+            }
             if (provisionalMinor > 0L) {
                 add("Total includes provisional current-month interest (not capitalized).")
             }
@@ -171,5 +197,56 @@ object InterestCalculationEngine {
     ): Long {
         if (month.isBefore(YearMonth.from(openingDate))) return 0L
         return depositMap[month]?.amountMinor ?: 0L
+    }
+
+    private fun isMonthAccrualComplete(
+        month: YearMonth,
+        asOf: LocalDate,
+        accrualEnd: LocalDate?,
+    ): Boolean {
+        if (asOf.dayOfMonth == month.lengthOfMonth()) return true
+        if (accrualEnd != null && YearMonth.from(accrualEnd) == month && !asOf.isBefore(accrualEnd)) {
+            return true
+        }
+        return false
+    }
+
+    private fun provisionalElapsedDays(
+        month: YearMonth,
+        asOf: LocalDate,
+        openingDate: LocalDate,
+        accrualEnd: LocalDate?,
+    ): Long {
+        val accrualStart = accrualPeriodStartInMonth(month, openingDate)
+        val accrualEndInMonth = accrualPeriodEndInMonth(month, accrualEnd)
+        val effectiveEnd = minOf(asOf, accrualEndInMonth)
+        if (effectiveEnd.isBefore(accrualStart)) return 0L
+        return ChronoUnit.DAYS.between(accrualStart, effectiveEnd).coerceAtLeast(0L)
+    }
+
+    private fun accrualDaysInMonth(
+        month: YearMonth,
+        openingDate: LocalDate,
+        accrualEnd: LocalDate?,
+    ): Long {
+        val accrualStart = accrualPeriodStartInMonth(month, openingDate)
+        val accrualEndInMonth = accrualPeriodEndInMonth(month, accrualEnd)
+        if (accrualEndInMonth.isBefore(accrualStart)) return 0L
+        return ChronoUnit.DAYS.between(accrualStart, accrualEndInMonth) + 1L
+    }
+
+    private fun accrualPeriodStartInMonth(month: YearMonth, openingDate: LocalDate): LocalDate {
+        val monthStart = month.atDay(1)
+        return if (YearMonth.from(openingDate) == month && openingDate.isAfter(monthStart)) {
+            openingDate
+        } else {
+            monthStart
+        }
+    }
+
+    private fun accrualPeriodEndInMonth(month: YearMonth, accrualEnd: LocalDate?): LocalDate {
+        val monthEnd = month.atEndOfMonth()
+        if (accrualEnd == null || YearMonth.from(accrualEnd) != month) return monthEnd
+        return minOf(monthEnd, accrualEnd)
     }
 }

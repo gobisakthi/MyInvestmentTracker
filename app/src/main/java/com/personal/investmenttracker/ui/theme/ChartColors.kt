@@ -4,75 +4,67 @@ import androidx.compose.ui.graphics.Color
 import com.personal.investmenttracker.domain.model.InvestmentType
 
 /**
- * Curated allocation palette — distinct hues per account, grouped by investment type.
+ * Premium allocation palette — each slice gets a clearly different hue (yellow, green, orange, …).
  */
-private val ppfPieShades = listOf(
-    Color(0xFF1E40AF),
-    Color(0xFF2563EB),
-    Color(0xFF0284C7),
-    Color(0xFF0E7490),
+val premiumPiePalette = listOf(
+    Color(0xFFEAB308), // gold / yellow
+    Color(0xFF16A34A), // green
+    Color(0xFFEA580C), // orange
+    Color(0xFF9333EA), // purple
+    Color(0xFF0891B2), // cyan
+    Color(0xFFE11D48), // rose
+    Color(0xFF4F46E5), // indigo
+    Color(0xFF84CC16), // lime
+    Color(0xFFDB2777), // pink
+    Color(0xFF0D9488), // teal
+    Color(0xFFF97316), // bright orange
+    Color(0xFF2563EB), // blue
+    Color(0xFFCA8A04), // amber
+    Color(0xFF059669), // emerald
+    Color(0xFF7C3AED), // violet
+    Color(0xFFDC2626), // red
 )
 
-private val ssaPieShades = listOf(
-    Color(0xFF6D28D9),
-    Color(0xFF9333EA),
-    Color(0xFFC026D3),
-    Color(0xFFBE185D),
-)
-
-private val pfPieShades = listOf(
-    Color(0xFFC2410C),
-    Color(0xFFEA580C),
-    Color(0xFFD97706),
-    Color(0xFFCA8A04),
-)
-
-/** Used when many accounts exceed per-type shade lists. */
-private val extraPieShades = listOf(
-    Color(0xFF059669),
-    Color(0xFF0D9488),
-    Color(0xFF4F46E5),
-    Color(0xFF7C2D12),
-    Color(0xFF1D4ED8),
-    Color(0xFFDB2777),
-)
+/** Spread hues around the wheel so neighbours rarely look alike. */
+private const val PALETTE_STRIDE = 5
 
 fun pieSliceColor(type: InvestmentType, indexAmongType: Int): Color {
-    val family = when (type) {
-        InvestmentType.PPF -> ppfPieShades
-        InvestmentType.SSA -> ssaPieShades
-        InvestmentType.PF -> pfPieShades
-    }
-    return family[indexAmongType % family.size]
+    val typeSeed = type.ordinal * 2 + indexAmongType
+    return premiumPiePalette[typeSeed % premiumPiePalette.size]
 }
 
-/** Assign colors so neighbouring slices (by draw order) stay visually distinct. */
 fun assignPremiumPieColors(
     slices: List<PieSliceColorInput>,
 ): List<Color> {
     if (slices.isEmpty()) return emptyList()
+    val palette = premiumPiePalette
     val result = MutableList(slices.size) { Color.Unspecified }
-    val used = mutableSetOf<Color>()
     slices.forEachIndexed { index, input ->
-        val candidates = buildList {
-            add(pieSliceColor(input.type, input.indexAmongType))
-            addAll(extraPieShades)
-            addAll(
-                when (input.type) {
-                    InvestmentType.PPF -> ssaPieShades + pfPieShades
-                    InvestmentType.SSA -> pfPieShades + ppfPieShades
-                    InvestmentType.PF -> ppfPieShades + ssaPieShades
-                },
-            )
-        }.distinct()
-        val prev = result.getOrNull(index - 1)
-        val chosen = candidates.firstOrNull { candidate ->
-            candidate != prev && candidate !in used
-        } ?: candidates.firstOrNull { it != prev } ?: candidates.first()
-        result[index] = chosen
-        used.add(chosen)
+        var pick = (index * PALETTE_STRIDE + input.type.ordinal) % palette.size
+        var attempts = 0
+        while (attempts < palette.size) {
+            val candidate = palette[pick]
+            val prev = result.getOrNull(index - 1)
+            if (prev == null || !colorsTooSimilar(prev, candidate)) {
+                result[index] = candidate
+                break
+            }
+            pick = (pick + 1) % palette.size
+            attempts++
+        }
+        if (result[index] == Color.Unspecified) {
+            result[index] = palette[index % palette.size]
+        }
     }
     return result
+}
+
+private fun colorsTooSimilar(a: Color, b: Color): Boolean {
+    if (a == b) return true
+    val dr = kotlin.math.abs(a.red - b.red)
+    val dg = kotlin.math.abs(a.green - b.green)
+    val db = kotlin.math.abs(a.blue - b.blue)
+    return dr + dg + db < 0.18f
 }
 
 data class PieSliceColorInput(
@@ -85,4 +77,4 @@ fun Color.luminance(): Float {
 }
 
 fun Color.onPieSliceLabel(): Color =
-    if (luminance() > 0.62f) Color(0xFF0F172A) else Color.White
+    if (luminance() > 0.58f) Color(0xFF0F172A) else Color.White

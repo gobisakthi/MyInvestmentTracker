@@ -27,6 +27,8 @@ data class InterestCalculationInput(
     val openingBalanceIncludesCreditedInterest: Boolean,
     val monthlyDeposits: List<MonthlyDepositInput>,
     val ratePeriods: List<RatePeriodInput>,
+    /** Last date interest accrues (inclusive), e.g. FD maturity or RD end. */
+    val accrualEndDate: LocalDate? = null,
 )
 
 enum class CalculationStatus {

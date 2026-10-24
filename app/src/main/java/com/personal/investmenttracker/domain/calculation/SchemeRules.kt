@@ -17,6 +17,12 @@ fun schemeRulesFor(type: InvestmentType): SchemeRules {
         InvestmentType.PPF,
         InvestmentType.SSA,
         InvestmentType.PF,
+        InvestmentType.RD,
+        InvestmentType.FD,
+        InvestmentType.STOCKS,
+        InvestmentType.METALS,
+        InvestmentType.REAL_ESTATE,
+        InvestmentType.NPS,
         -> EligibleBalancePolicy.MonthDepositIncludedInEligibleBalance
     }
     return SchemeRules(eligibleBalancePolicy = policy)

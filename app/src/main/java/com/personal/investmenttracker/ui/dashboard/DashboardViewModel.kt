@@ -7,6 +7,8 @@ import com.personal.investmenttracker.data.repository.AccountWithCalculation
 import com.personal.investmenttracker.data.repository.countFor
 import com.personal.investmenttracker.data.repository.estimatedTotalFor
 import com.personal.investmenttracker.data.repository.portfolioEstimatedTotalMinor
+import com.personal.investmenttracker.domain.model.providentPlusStocksAllocationTypes
+import com.personal.investmenttracker.domain.model.traditionalAllocationTypes
 import com.personal.investmenttracker.domain.calculation.CalculationStatus
 import com.personal.investmenttracker.domain.model.InvestmentType
 import java.time.LocalDate
@@ -32,6 +34,10 @@ data class DashboardUiState(
     val portfolioUncreditedInterestMinor: Long = 0L,
     val portfolioProvisionalMinor: Long = 0L,
     val changeFromYesterdayMinor: Long = 0L,
+    val traditionalPortfolioTotalMinor: Long = 0L,
+    val traditionalChangeFromYesterdayMinor: Long = 0L,
+    val providentPlusStocksPortfolioTotalMinor: Long = 0L,
+    val providentPlusStocksChangeFromYesterdayMinor: Long = 0L,
     val ppfTotals: CategoryTotals = CategoryTotals(0, 0L),
     val ssaTotals: CategoryTotals = CategoryTotals(0, 0L),
     val pfTotals: CategoryTotals = CategoryTotals(0, 0L),
@@ -64,9 +70,20 @@ class DashboardViewModel(
             },
         ) { todayList, yesterdayList ->
             val todayState = todayList.toDashboardUiState()
-            val todayTotal = todayList.portfolioEstimatedTotalMinor()
-            val yesterdayTotal = yesterdayList.portfolioEstimatedTotalMinor()
-            todayState.copy(changeFromYesterdayMinor = todayTotal - yesterdayTotal)
+            val allToday = todayList.portfolioEstimatedTotalMinor()
+            val allYesterday = yesterdayList.portfolioEstimatedTotalMinor()
+            val tradToday = todayList.portfolioEstimatedTotalMinor(traditionalAllocationTypes)
+            val tradYesterday = yesterdayList.portfolioEstimatedTotalMinor(traditionalAllocationTypes)
+            val ppsToday = todayList.portfolioEstimatedTotalMinor(providentPlusStocksAllocationTypes)
+            val ppsYesterday = yesterdayList.portfolioEstimatedTotalMinor(providentPlusStocksAllocationTypes)
+            todayState.copy(
+                portfolioEstimatedTotalMinor = allToday,
+                changeFromYesterdayMinor = allToday - allYesterday,
+                traditionalPortfolioTotalMinor = tradToday,
+                traditionalChangeFromYesterdayMinor = tradToday - tradYesterday,
+                providentPlusStocksPortfolioTotalMinor = ppsToday,
+                providentPlusStocksChangeFromYesterdayMinor = ppsToday - ppsYesterday,
+            )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DashboardUiState())
 }
 

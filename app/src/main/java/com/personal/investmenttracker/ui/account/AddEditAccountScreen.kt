@@ -56,6 +56,7 @@ fun AddEditAccountScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var showDeleteDialog by remember { mutableStateOf(false) }
+    val type = uiState.type
 
     LaunchedEffect(accountId) { viewModel.loadAccount(accountId) }
 
@@ -113,32 +114,175 @@ fun AddEditAccountScreen(
                 OutlinedTextField(
                     value = uiState.name,
                     onValueChange = viewModel::onNameChange,
-                    label = { Text("Name") },
+                    label = {
+                        Text(
+                            when (type) {
+                                InvestmentType.STOCKS -> "Company name"
+                                InvestmentType.REAL_ESTATE -> "Property name"
+                                else -> "Name"
+                            },
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 InvestmentTypeDropdown(selected = uiState.type, onSelected = viewModel::onTypeChange)
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = uiState.openingBalance,
-                    onValueChange = viewModel::onOpeningBalanceChange,
-                    label = { Text("Balance (INR)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = uiState.balanceDate,
-                    onValueChange = viewModel::onBalanceDateChange,
-                    label = { Text("As of date (YYYY-MM-DD)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                )
-                if (!isEdit) {
+
+                when (type) {
+                    InvestmentType.FD -> {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = uiState.openingBalance,
+                            onValueChange = viewModel::onOpeningBalanceChange,
+                            label = { Text("Principal (INR)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = uiState.balanceDate,
+                            onValueChange = viewModel::onBalanceDateChange,
+                            label = { Text("Start date (YYYY-MM-DD)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = uiState.termEndDate,
+                            onValueChange = viewModel::onTermEndDateChange,
+                            label = { Text("End date (YYYY-MM-DD)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                    }
+                    InvestmentType.RD -> {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = uiState.rdMonthlyAmount,
+                            onValueChange = viewModel::onRdMonthlyAmountChange,
+                            label = { Text("Monthly investment (INR)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = uiState.rdStartYearMonth,
+                            onValueChange = viewModel::onRdStartYearMonthChange,
+                            label = { Text("Start month (YYYY-MM)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = uiState.rdEndYearMonth,
+                            onValueChange = viewModel::onRdEndYearMonthChange,
+                            label = { Text("End month (YYYY-MM)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                    }
+                    InvestmentType.STOCKS -> {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = uiState.shareQuantity,
+                            onValueChange = viewModel::onShareQuantityChange,
+                            label = { Text("Number of shares") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = uiState.sharePrice,
+                            onValueChange = viewModel::onSharePriceChange,
+                            label = { Text("Current price per share (INR)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                    }
+                    InvestmentType.METALS -> {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = uiState.shareQuantity,
+                            onValueChange = viewModel::onShareQuantityChange,
+                            label = { Text("Quantity") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = uiState.sharePrice,
+                            onValueChange = viewModel::onSharePriceChange,
+                            label = { Text("Price per unit (INR)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                    }
+                    InvestmentType.REAL_ESTATE -> {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = uiState.currentValue,
+                            onValueChange = viewModel::onCurrentValueChange,
+                            label = { Text("Property value (INR)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                    }
+                    InvestmentType.NPS -> {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = uiState.currentValue,
+                            onValueChange = viewModel::onCurrentValueChange,
+                            label = { Text("Current value (INR)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                    }
+                    InvestmentType.PPF, InvestmentType.SSA, InvestmentType.PF -> {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = uiState.openingBalance,
+                            onValueChange = viewModel::onOpeningBalanceChange,
+                            label = { Text("Balance (INR)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = uiState.balanceDate,
+                            onValueChange = viewModel::onBalanceDateChange,
+                            label = { Text("As of date (YYYY-MM-DD)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp),
+                        )
+                    }
+                }
+
+                val showRate = when (type) {
+                    InvestmentType.FD, InvestmentType.RD -> true
+                    InvestmentType.PPF, InvestmentType.SSA, InvestmentType.PF -> !isEdit
+                    InvestmentType.STOCKS,
+                    InvestmentType.METALS,
+                    InvestmentType.REAL_ESTATE,
+                    InvestmentType.NPS,
+                    -> false
+                }
+                if (showRate) {
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(
                         value = uiState.initialAnnualRatePercent,
@@ -149,6 +293,7 @@ fun AddEditAccountScreen(
                         shape = RoundedCornerShape(12.dp),
                     )
                 }
+
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(
                     value = uiState.notes,

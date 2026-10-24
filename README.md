@@ -1,6 +1,6 @@
 # My Investment Tracker
 
-Offline Android app to track PPF, SSA, and PF balances with interest estimates.
+Offline Android app to track PPF, SSA, PF, FD, RD, stocks, metals, real estate, and NPS with interest estimates and allocation charts.
 
 ## Install from your phone (APK link)
 
@@ -10,7 +10,7 @@ Offline Android app to track PPF, SSA, and PF balances with interest estimates.
 
 Direct link pattern (replace tag with the latest version):
 
-`https://github.com/gobisakthi/MyInvestmentTracker/releases/download/v1.0.0/MyInvestmentTracker-v1.0.0-debug.apk`
+`https://github.com/gobisakthi/MyInvestmentTracker/releases/download/v1.1.0/MyInvestmentTracker-v1.1.0-debug.apk`
 
 ## Develop
 

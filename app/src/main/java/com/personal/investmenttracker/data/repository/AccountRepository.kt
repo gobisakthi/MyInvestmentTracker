@@ -26,16 +26,7 @@ class AccountRepository(
     suspend fun updateAccount(accountId: Long, form: ValidatedAccountForm) {
         val existing = accountDao.getById(accountId)
             ?: throw NoSuchElementException("Account not found")
-        accountDao.update(
-            existing.copy(
-                name = form.name,
-                type = form.type,
-                openingBalanceMinor = form.openingBalanceMinor,
-                openingBalanceDate = form.openingBalanceDate,
-                openingBalanceIncludesCreditedInterest = form.openingBalanceIncludesCreditedInterest,
-                notes = form.notes,
-            ),
-        )
+        accountDao.update(existing.withForm(form))
     }
 
     suspend fun deleteAccount(accountId: Long) {
@@ -63,6 +54,36 @@ private fun ValidatedAccountForm.toNewEntity(): AccountEntity =
         openingBalanceIncludesCreditedInterest = openingBalanceIncludesCreditedInterest,
         createdAtEpochMillis = System.currentTimeMillis(),
         notes = notes,
+        fixedAnnualRateBasisPoints = fixedAnnualRateBasisPoints,
+        termEndDate = termEndDate,
+        rdMonthlyAmountMinor = rdMonthlyAmountMinor,
+        termStartYear = termStartYear,
+        termStartMonth = termStartMonth,
+        termEndYear = termEndYear,
+        termEndMonth = termEndMonth,
+        shareQuantity = shareQuantity,
+        currentSharePriceMinor = currentSharePriceMinor,
+        currentValueMinor = currentValueMinor,
+    )
+
+private fun AccountEntity.withForm(form: ValidatedAccountForm): AccountEntity =
+    copy(
+        name = form.name,
+        type = form.type,
+        openingBalanceMinor = form.openingBalanceMinor,
+        openingBalanceDate = form.openingBalanceDate,
+        openingBalanceIncludesCreditedInterest = form.openingBalanceIncludesCreditedInterest,
+        notes = form.notes,
+        fixedAnnualRateBasisPoints = form.fixedAnnualRateBasisPoints,
+        termEndDate = form.termEndDate,
+        rdMonthlyAmountMinor = form.rdMonthlyAmountMinor,
+        termStartYear = form.termStartYear,
+        termStartMonth = form.termStartMonth,
+        termEndYear = form.termEndYear,
+        termEndMonth = form.termEndMonth,
+        shareQuantity = form.shareQuantity,
+        currentSharePriceMinor = form.currentSharePriceMinor,
+        currentValueMinor = form.currentValueMinor,
     )
 
 fun List<AccountSummary>.portfolioRecordedTotalMinor(): Long =

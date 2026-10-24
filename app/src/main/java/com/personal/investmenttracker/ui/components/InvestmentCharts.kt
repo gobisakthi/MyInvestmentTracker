@@ -2,6 +2,9 @@ package com.personal.investmenttracker.ui.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -55,11 +58,17 @@ import com.personal.investmenttracker.data.repository.AccountWithCalculation
 import com.personal.investmenttracker.domain.calculation.CalculationStatus
 import com.personal.investmenttracker.domain.calculation.MonthlyInterestPoint
 import com.personal.investmenttracker.domain.model.InvestmentType
+import com.personal.investmenttracker.domain.model.dashboardAllocationSubtitle
+import com.personal.investmenttracker.domain.model.providentPlusStocksAllocationTypes
+import com.personal.investmenttracker.domain.model.traditionalAllocationTypes
+import com.personal.investmenttracker.ui.theme.FdColor
 import com.personal.investmenttracker.ui.theme.PfColor
+import com.personal.investmenttracker.ui.theme.RdColor
 import com.personal.investmenttracker.ui.theme.PieSliceColorInput
 import com.personal.investmenttracker.ui.theme.PpfColor
 import com.personal.investmenttracker.ui.theme.SsaColor
 import com.personal.investmenttracker.ui.theme.TealLight
+import com.personal.investmenttracker.ui.theme.TealPrimary
 import com.personal.investmenttracker.ui.theme.assignPremiumPieColors
 import com.personal.investmenttracker.ui.theme.onPieSliceLabel
 import com.personal.investmenttracker.util.formatInrMinor
@@ -68,8 +77,16 @@ import java.util.Locale
 import java.util.Locale.US
 data class PieSlice(val label: String, val valueMinor: Long, val color: Color)
 
-fun pieSlicesForAccounts(accounts: List<AccountWithCalculation>): List<PieSlice> {
-    val eligible = accounts.mapNotNull { row ->
+fun pieSlicesForAccounts(
+    accounts: List<AccountWithCalculation>,
+    includeTypes: Set<InvestmentType>? = null,
+): List<PieSlice> {
+    val scoped = if (includeTypes == null) {
+        accounts
+    } else {
+        accounts.filter { it.summary.type in includeTypes }
+    }
+    val eligible = scoped.mapNotNull { row ->
         val valueMinor = when (row.calculation.status) {
             CalculationStatus.OK -> row.calculation.estimatedTotalMinor
             else -> null
@@ -132,6 +149,85 @@ private fun isAngleInSweep(tapAngle: Float, startAngle: Float, sweep: Float): Bo
         tap in start..end
     } else {
         tap >= start || tap <= end
+    }
+}
+
+private data class AllocationPiePage(
+    val title: String,
+    val subtitle: String,
+    val slices: List<PieSlice>,
+)
+
+@Composable
+fun AllocationPieChartsPager(
+    accounts: List<AccountWithCalculation>,
+    pagerState: PagerState,
+    modifier: Modifier = Modifier,
+) {
+    val pages = remember(accounts) {
+        listOf(
+            AllocationPiePage(
+                title = "Allocation",
+                subtitle = dashboardAllocationSubtitle(0),
+                slices = pieSlicesForAccounts(accounts, traditionalAllocationTypes),
+            ),
+            AllocationPiePage(
+                title = "Allocation",
+                subtitle = dashboardAllocationSubtitle(1),
+                slices = pieSlicesForAccounts(accounts, providentPlusStocksAllocationTypes),
+            ),
+            AllocationPiePage(
+                title = "Allocation",
+                subtitle = dashboardAllocationSubtitle(2),
+                slices = pieSlicesForAccounts(accounts),
+            ),
+        )
+    }
+    val current = pages[pagerState.currentPage.coerceIn(0, pages.lastIndex)]
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(current.title, style = MaterialTheme.typography.titleLarge)
+        Text(
+            current.subtitle,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        val swipeHint = when (pagerState.currentPage) {
+            0 -> "Swipe for PPF…RD + stocks →"
+            1 -> "Swipe for all holdings →"
+            else -> "Swipe for PPF · SSA · PF · FD · RD →"
+        }
+        Text(
+            swipeHint,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+        Spacer(Modifier.height(12.dp))
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxWidth(),
+        ) { page ->
+            PortfolioPieChart(slices = pages[page].slices)
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            pages.forEachIndexed { index, _ ->
+                val selected = index == pagerState.currentPage
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 4.dp)
+                        .size(if (selected) 9.dp else 7.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (selected) TealPrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(0.25f),
+                        ),
+                )
+            }
+        }
     }
 }
 
@@ -463,4 +559,10 @@ fun colorForInvestmentType(type: InvestmentType): Color = when (type) {
     InvestmentType.PPF -> PpfColor
     InvestmentType.SSA -> SsaColor
     InvestmentType.PF -> PfColor
+    InvestmentType.FD -> FdColor
+    InvestmentType.RD -> RdColor
+    InvestmentType.STOCKS -> Color(0xFF7C3AED)
+    InvestmentType.METALS -> Color(0xFFD97706)
+    InvestmentType.REAL_ESTATE -> Color(0xFF059669)
+    InvestmentType.NPS -> Color(0xFF2563EB)
 }

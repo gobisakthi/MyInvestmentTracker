@@ -28,6 +28,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,9 +42,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.personal.investmenttracker.data.repository.AccountWithCalculation
 import com.personal.investmenttracker.domain.calculation.CalculationStatus
+import com.personal.investmenttracker.domain.model.DASHBOARD_ALLOCATION_PAGE_COUNT
+import com.personal.investmenttracker.domain.model.dashboardAllocationSubtitle
 import com.personal.investmenttracker.ui.asof.AsOfDateViewModel
-import com.personal.investmenttracker.ui.components.PortfolioPieChart
-import com.personal.investmenttracker.ui.components.pieSlicesForAccounts
+import com.personal.investmenttracker.ui.components.AllocationPieChartsPager
 import com.personal.investmenttracker.ui.components.PremiumGlassCard
 import com.personal.investmenttracker.ui.components.PremiumHeroCard
 import com.personal.investmenttracker.ui.components.colorForInvestmentType
@@ -125,37 +127,54 @@ fun DashboardScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
-                PremiumHeroCard {
-                    Text(
-                        asOfDateViewModel.formattedAsOfDate(),
-                        color = Color.White.copy(alpha = 0.85f),
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        formatInrMinor(state.portfolioEstimatedTotalMinor),
-                        color = Color.White,
-                        style = MaterialTheme.typography.headlineLarge,
-                    )
-                    val change = state.changeFromYesterdayMinor
-                    Text(
-                        text = formatSignedChangeMinor(change) + " since yesterday",
-                        color = when {
-                            change > 0L -> GainGreen.copy(alpha = 0.95f)
-                            change < 0L -> LossRed.copy(alpha = 0.95f)
-                            else -> Color.White.copy(alpha = 0.7f)
-                        },
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium,
-                    )
+                val allocationPagerState = rememberPagerState(pageCount = { DASHBOARD_ALLOCATION_PAGE_COUNT })
+                val page = allocationPagerState.currentPage
+                val portfolioTotal = when (page) {
+                    0 -> state.traditionalPortfolioTotalMinor
+                    1 -> state.providentPlusStocksPortfolioTotalMinor
+                    else -> state.portfolioEstimatedTotalMinor
                 }
-            }
-
-            item {
-                PremiumGlassCard {
-                    Text("Allocation", style = MaterialTheme.typography.titleLarge)
-                    Spacer(Modifier.height(12.dp))
-                    PortfolioPieChart(slices = pieSlicesForAccounts(accounts))
+                val portfolioChange = when (page) {
+                    0 -> state.traditionalChangeFromYesterdayMinor
+                    1 -> state.providentPlusStocksChangeFromYesterdayMinor
+                    else -> state.changeFromYesterdayMinor
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    PremiumHeroCard {
+                        Text(
+                            asOfDateViewModel.formattedAsOfDate(),
+                            color = Color.White.copy(alpha = 0.85f),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                        Text(
+                            dashboardAllocationSubtitle(page),
+                            color = Color.White.copy(alpha = 0.75f),
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            formatInrMinor(portfolioTotal),
+                            color = Color.White,
+                            style = MaterialTheme.typography.headlineLarge,
+                        )
+                        Text(
+                            text = formatSignedChangeMinor(portfolioChange) + " since yesterday",
+                            color = when {
+                                portfolioChange > 0L -> GainGreen.copy(alpha = 0.95f)
+                                portfolioChange < 0L -> LossRed.copy(alpha = 0.95f)
+                                else -> Color.White.copy(alpha = 0.7f)
+                            },
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                    PremiumGlassCard {
+                        AllocationPieChartsPager(
+                            accounts = accounts,
+                            pagerState = allocationPagerState,
+                        )
+                    }
                 }
             }
 
@@ -179,7 +198,7 @@ fun DashboardScreen(
                         Text("No accounts yet", style = MaterialTheme.typography.titleMedium)
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "Tap + to add PPF, SSA, or PF.",
+                            "Tap + to add an investment or stock holding.",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }

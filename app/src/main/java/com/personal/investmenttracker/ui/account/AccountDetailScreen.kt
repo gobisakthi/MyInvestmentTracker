@@ -32,12 +32,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.personal.investmenttracker.domain.calculation.CalculationStatus
+import com.personal.investmenttracker.domain.model.InvestmentType
 import com.personal.investmenttracker.ui.asof.AsOfDateViewModel
 import com.personal.investmenttracker.ui.components.MonthlyInterestBarChart
 import com.personal.investmenttracker.ui.components.PremiumGlassCard
 import com.personal.investmenttracker.ui.components.PremiumHeroCard
 import com.personal.investmenttracker.ui.components.colorForInvestmentType
 import com.personal.investmenttracker.util.formatInrMinor
+import java.math.BigDecimal
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,6 +83,11 @@ fun AccountDetailScreen(
             else -> {
                 val calc = row.calculation
                 val accent = colorForInvestmentType(row.summary.type)
+                val type = row.summary.type
+                val isQuantityPrice = type.usesQuantityAndPrice()
+                val isManualValue = type.usesManualCurrentValue()
+                val showDepositsAndRates = type.usesDepositsAndRateHistory()
+                val showInterestChart = type.usesInterestAccrual()
                 Column(
                     Modifier
                         .fillMaxSize()
@@ -108,34 +115,94 @@ fun AccountDetailScreen(
                                 color = Color.White.copy(alpha = 0.9f),
                             )
                         }
-                        Text(
-                            asOfDateViewModel.formattedAsOfDate(),
-                            color = Color.White.copy(alpha = 0.75f),
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(top = 6.dp),
-                        )
+                        if (!isQuantityPrice && !isManualValue) {
+                            Text(
+                                asOfDateViewModel.formattedAsOfDate(),
+                                color = Color.White.copy(alpha = 0.75f),
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(top = 6.dp),
+                            )
+                        }
                     }
                     Spacer(Modifier.height(16.dp))
-                    PremiumGlassCard {
-                        Text("Monthly interest", style = MaterialTheme.typography.titleLarge)
+                    if (isQuantityPrice && row.shareQuantity != null && row.currentSharePriceMinor != null) {
+                        PremiumGlassCard {
+                            Text("Holdings", style = MaterialTheme.typography.titleLarge)
+                            Spacer(Modifier.height(8.dp))
+                            val qtyText = BigDecimal.valueOf(row.shareQuantity)
+                                .stripTrailingZeros()
+                                .toPlainString()
+                            val unitLabel = if (type == InvestmentType.STOCKS) "shares" else "units"
+                            Text(
+                                "$qtyText $unitLabel × ${formatInrMinor(row.currentSharePriceMinor)}",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                if (type == InvestmentType.STOCKS) {
+                                    "Market value = shares × latest price you entered"
+                                } else {
+                                    "Value = quantity × price per unit you entered"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 6.dp),
+                            )
+                        }
+                        Spacer(Modifier.height(16.dp))
+                    }
+                    if (isManualValue && row.currentValueMinor != null) {
+                        PremiumGlassCard {
+                            Text(
+                                if (type == InvestmentType.REAL_ESTATE) "Property value" else "Current value",
+                                style = MaterialTheme.typography.titleLarge,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                formatInrMinor(row.currentValueMinor),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                "Update via Edit when your estimate changes",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 6.dp),
+                            )
+                        }
+                        Spacer(Modifier.height(16.dp))
+                    }
+                    if (showInterestChart) {
+                        PremiumGlassCard {
+                            Text("Monthly interest", style = MaterialTheme.typography.titleLarge)
+                            Spacer(Modifier.height(8.dp))
+                            MonthlyInterestBarChart(points = row.monthlyBreakdown)
+                        }
+                        Spacer(Modifier.height(16.dp))
+                    }
+                    if (showDepositsAndRates) {
+                        Button(
+                            onClick = onMonthlyDeposits,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = accent),
+                        ) {
+                            Text("Deposits")
+                        }
                         Spacer(Modifier.height(8.dp))
-                        MonthlyInterestBarChart(points = row.monthlyBreakdown)
+                        OutlinedButton(onClick = onInterestRateHistory, modifier = Modifier.fillMaxWidth()) {
+                            Text("Rates")
+                        }
+                        Spacer(Modifier.height(8.dp))
                     }
-                    Spacer(Modifier.height(16.dp))
-                    Button(
-                        onClick = onMonthlyDeposits,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = accent),
-                    ) {
-                        Text("Deposits")
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedButton(onClick = onInterestRateHistory, modifier = Modifier.fillMaxWidth()) {
-                        Text("Rates")
-                    }
-                    Spacer(Modifier.height(8.dp))
                     OutlinedButton(onClick = onEditAccount, modifier = Modifier.fillMaxWidth()) {
-                        Text("Edit account")
+                        Text(
+                            when {
+                                type == InvestmentType.STOCKS -> "Update shares & price"
+                                type == InvestmentType.METALS -> "Update quantity & price"
+                                isManualValue -> "Update value"
+                                else -> "Edit account"
+                            },
+                        )
                     }
                     Spacer(Modifier.height(24.dp))
                 }

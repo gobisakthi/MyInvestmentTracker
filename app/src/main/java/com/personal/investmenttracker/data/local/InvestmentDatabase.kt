@@ -19,7 +19,7 @@ import com.personal.investmenttracker.data.local.entity.TransactionEntity
         InterestRatePeriodEntity::class,
         MonthlyDepositEntity::class,
     ],
-    version = 2,
+    version = 5,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
