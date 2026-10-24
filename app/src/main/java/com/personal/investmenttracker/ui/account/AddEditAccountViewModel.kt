@@ -3,9 +3,13 @@ package com.personal.investmenttracker.ui.account
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.personal.investmenttracker.data.repository.AccountRepository
+import com.personal.investmenttracker.data.repository.InterestRateRepository
+import com.personal.investmenttracker.domain.calculation.firstAccrualYearMonth
 import com.personal.investmenttracker.domain.model.InvestmentType
 import com.personal.investmenttracker.domain.validation.AccountFormValidationResult
 import com.personal.investmenttracker.domain.validation.AccountFormValidator
+import java.math.BigDecimal
+import java.math.RoundingMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +24,8 @@ data class AddEditAccountUiState(
     val type: InvestmentType = InvestmentType.PPF,
     val openingBalance: String = "",
     val balanceDate: String = "",
-    val openingBalanceIncludesCreditedInterest: Boolean = false,
+    val initialAnnualRatePercent: String = "7.1",
+    val openingBalanceIncludesCreditedInterest: Boolean = true,
     val notes: String = "",
     val validationErrors: List<String> = emptyList(),
     val saveSucceeded: Boolean = false,
@@ -29,6 +34,7 @@ data class AddEditAccountUiState(
 
 class AddEditAccountViewModel(
     private val accountRepository: AccountRepository,
+    private val interestRateRepository: InterestRateRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AddEditAccountUiState())
@@ -61,7 +67,7 @@ class AddEditAccountViewModel(
                     type = entity.type,
                     openingBalance = formatRupeesInput(entity.openingBalanceMinor),
                     balanceDate = entity.openingBalanceDate.format(dateFormatter),
-                    openingBalanceIncludesCreditedInterest = entity.openingBalanceIncludesCreditedInterest,
+                    openingBalanceIncludesCreditedInterest = true,
                     notes = entity.notes.orEmpty(),
                     validationErrors = emptyList(),
                     saveErrorMessage = null,
@@ -80,12 +86,10 @@ class AddEditAccountViewModel(
     fun onBalanceDateChange(value: String) =
         updateForm { copy(balanceDate = value, validationErrors = emptyList()) }
 
-    fun onIncludesCreditedInterestChange(value: Boolean) =
-        updateForm { copy(openingBalanceIncludesCreditedInterest = value) }
+    fun onInitialRateChange(value: String) =
+        updateForm { copy(initialAnnualRatePercent = value, validationErrors = emptyList()) }
 
     fun onNotesChange(value: String) = updateForm { copy(notes = value) }
-
-    fun consumeSaveSuccess() = updateForm { copy(saveSucceeded = false) }
 
     fun save(onSuccess: () -> Unit) {
         val current = _uiState.value
@@ -95,7 +99,7 @@ class AddEditAccountViewModel(
                 type = current.type,
                 openingBalanceInput = current.openingBalance,
                 balanceDateInput = current.balanceDate,
-                openingBalanceIncludesCreditedInterest = current.openingBalanceIncludesCreditedInterest,
+                openingBalanceIncludesCreditedInterest = true,
                 notes = current.notes,
             )
         ) {
@@ -103,6 +107,14 @@ class AddEditAccountViewModel(
                 _uiState.update { it.copy(validationErrors = result.errors) }
             }
             is AccountFormValidationResult.Valid -> {
+                val ratePercent = current.initialAnnualRatePercent.trim().toBigDecimalOrNull()
+                val isNew = loadedAccountId == null
+                if (isNew && (ratePercent == null || ratePercent < BigDecimal.ZERO)) {
+                    _uiState.update {
+                        it.copy(validationErrors = listOf("Enter a valid initial annual interest rate (%)."))
+                    }
+                    return
+                }
                 viewModelScope.launch {
                     _uiState.update {
                         it.copy(isSaving = true, validationErrors = emptyList(), saveErrorMessage = null)
@@ -110,7 +122,20 @@ class AddEditAccountViewModel(
                     try {
                         val accountId = loadedAccountId
                         if (accountId == null) {
-                            accountRepository.insertAccount(result.form)
+                            val newId = accountRepository.insertAccount(result.form)
+                            if (ratePercent != null) {
+                                val effective = firstAccrualYearMonth(result.form.openingBalanceDate)
+                                val bps = ratePercent.multiply(BigDecimal(100))
+                                    .setScale(0, RoundingMode.HALF_UP).intValueExact()
+                                interestRateRepository.upsert(
+                                    accountId = newId,
+                                    effectiveYear = effective.year,
+                                    effectiveMonth = effective.monthValue,
+                                    annualRateBasisPoints = bps,
+                                    sourceNote = "Initial rate at account setup",
+                                    existingId = null,
+                                ).getOrThrow()
+                            }
                         } else {
                             accountRepository.updateAccount(accountId, result.form)
                         }

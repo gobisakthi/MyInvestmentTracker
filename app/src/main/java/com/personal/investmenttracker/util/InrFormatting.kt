@@ -10,6 +10,14 @@ fun formatInr(money: Money): String = formatInrMinorInternal(money.amountMinor)
 
 fun formatInrMinor(amountMinor: Long): String = formatInrMinorInternal(amountMinor)
 
+/** Signed change for dashboard, e.g. (+₹2,000.00) or (−₹500.00). */
+fun formatSignedChangeMinor(amountMinor: Long): String {
+    if (amountMinor == 0L) return "(±₹0.00)"
+    val sign = if (amountMinor > 0) "+" else "−"
+    val body = formatInrMinorInternal(kotlin.math.abs(amountMinor)).removePrefix("₹")
+    return "($sign₹$body)"
+}
+
 /**
  * Formats a rupee [BigDecimal] (allows negative amounts for future use).
  */

@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -20,14 +21,23 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.personal.investmenttracker.domain.calculation.CalculationStatus
 import com.personal.investmenttracker.ui.asof.AsOfDateViewModel
+import com.personal.investmenttracker.ui.components.MonthlyInterestBarChart
+import com.personal.investmenttracker.ui.components.PremiumGlassCard
+import com.personal.investmenttracker.ui.components.PremiumHeroCard
+import com.personal.investmenttracker.ui.components.colorForInvestmentType
 import com.personal.investmenttracker.util.formatInrMinor
-import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,111 +46,100 @@ fun AccountDetailScreen(
     asOfDateViewModel: AsOfDateViewModel,
     onNavigateBack: () -> Unit,
     onEditAccount: () -> Unit,
-    onAddTransaction: () -> Unit,
+    onMonthlyDeposits: () -> Unit,
     onInterestRateHistory: () -> Unit,
 ) {
-    val account by viewModel.account.collectAsStateWithLifecycle()
-    val balanceDateFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy")
+    val evaluation by viewModel.evaluation.collectAsStateWithLifecycle()
+    val asOf by asOfDateViewModel.asOfDate.collectAsStateWithLifecycle()
+    LaunchedEffect(asOf) { viewModel.updateAsOfDate(asOf) }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text(account?.name ?: "Account detail") },
+                title = { Text(evaluation?.summary?.name ?: "") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                ),
             )
         },
     ) { innerPadding ->
-        when (val current = account) {
+        when (val row = evaluation) {
             null -> {
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding),
-                    horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                    Modifier.fillMaxSize().padding(innerPadding),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    CircularProgressIndicator(modifier = Modifier.padding(32.dp))
+                    CircularProgressIndicator(Modifier.padding(48.dp))
                 }
             }
             else -> {
+                val calc = row.calculation
+                val accent = colorForInvestmentType(row.summary.type)
                 Column(
-                    modifier = Modifier
+                    Modifier
                         .fillMaxSize()
                         .padding(innerPadding)
-                        .padding(16.dp)
+                        .padding(horizontal = 20.dp)
                         .verticalScroll(rememberScrollState()),
                 ) {
-                    Text(
-                        text = current.type.displayName,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = "Dashboard as of ${asOfDateViewModel.formattedAsOfDate()}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    DetailLine(
-                        "Recorded opening balance",
-                        formatInrMinor(current.openingBalanceMinor),
-                    )
-                    DetailLine(
-                        "Balance effective date",
-                        current.openingBalanceDate.format(balanceDateFormatter),
-                    )
-                    DetailLine(
-                        "Includes credited interest through that date",
-                        if (current.openingBalanceIncludesCreditedInterest) "Yes" else "No",
-                    )
-                    DetailLine(
-                        "Estimated accrued interest",
-                        "Not calculated yet",
-                    )
-                    DetailLine(
-                        "Estimated current value",
-                        "Not calculated yet",
-                    )
-                    current.notes?.takeIf { it.isNotBlank() }?.let { notes ->
-                        DetailLine("Notes", notes)
+                    PremiumHeroCard {
+                        Text(
+                            row.summary.type.name,
+                            color = accent.copy(alpha = 0.9f),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        if (calc.status == CalculationStatus.OK) {
+                            Text(
+                                formatInrMinor(calc.estimatedTotalMinor),
+                                color = Color.White,
+                                style = MaterialTheme.typography.headlineMedium,
+                            )
+                        } else {
+                            Text(
+                                calc.messages.firstOrNull() ?: "Unavailable",
+                                color = Color.White.copy(alpha = 0.9f),
+                            )
+                        }
+                        Text(
+                            asOfDateViewModel.formattedAsOfDate(),
+                            color = Color.White.copy(alpha = 0.75f),
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Transactions and interest-rate history are not saved from those screens yet. Interest calculations will arrive in a later milestone.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Button(onClick = onAddTransaction, modifier = Modifier.fillMaxWidth()) {
-                        Text("Add transaction (not saved yet)")
+                    Spacer(Modifier.height(16.dp))
+                    PremiumGlassCard {
+                        Text("Monthly interest", style = MaterialTheme.typography.titleLarge)
+                        Spacer(Modifier.height(8.dp))
+                        MonthlyInterestBarChart(points = row.monthlyBreakdown)
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(Modifier.height(16.dp))
+                    Button(
+                        onClick = onMonthlyDeposits,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = accent),
+                    ) {
+                        Text("Deposits")
+                    }
+                    Spacer(Modifier.height(8.dp))
                     OutlinedButton(onClick = onInterestRateHistory, modifier = Modifier.fillMaxWidth()) {
-                        Text("Interest rate history (not saved yet)")
+                        Text("Rates")
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(Modifier.height(8.dp))
                     OutlinedButton(onClick = onEditAccount, modifier = Modifier.fillMaxWidth()) {
                         Text("Edit account")
                     }
+                    Spacer(Modifier.height(24.dp))
                 }
             }
         }
     }
-}
-
-@Composable
-private fun DetailLine(label: String, value: String) {
-    Text(
-        text = label,
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    Text(
-        text = value,
-        style = MaterialTheme.typography.bodyLarge,
-        modifier = Modifier.padding(bottom = 12.dp),
-    )
 }
