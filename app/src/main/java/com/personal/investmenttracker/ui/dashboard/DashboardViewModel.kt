@@ -6,6 +6,7 @@ import com.personal.investmenttracker.data.repository.AccountCalculationReposito
 import com.personal.investmenttracker.data.repository.AccountWithCalculation
 import com.personal.investmenttracker.data.repository.countFor
 import com.personal.investmenttracker.data.repository.estimatedTotalFor
+import com.personal.investmenttracker.data.repository.portfolioAccruedInterestMinor
 import com.personal.investmenttracker.data.repository.portfolioEstimatedTotalMinor
 import com.personal.investmenttracker.domain.model.providentPlusStocksAllocationTypes
 import com.personal.investmenttracker.domain.model.traditionalAllocationTypes
@@ -73,16 +74,18 @@ class DashboardViewModel(
             val allToday = todayList.portfolioEstimatedTotalMinor()
             val allYesterday = yesterdayList.portfolioEstimatedTotalMinor()
             val tradToday = todayList.portfolioEstimatedTotalMinor(traditionalAllocationTypes)
-            val tradYesterday = yesterdayList.portfolioEstimatedTotalMinor(traditionalAllocationTypes)
+            val tradInterestToday = todayList.portfolioAccruedInterestMinor(traditionalAllocationTypes)
+            val tradInterestYesterday = yesterdayList.portfolioAccruedInterestMinor(traditionalAllocationTypes)
             val ppsToday = todayList.portfolioEstimatedTotalMinor(providentPlusStocksAllocationTypes)
-            val ppsYesterday = yesterdayList.portfolioEstimatedTotalMinor(providentPlusStocksAllocationTypes)
+            val ppsInterestToday = todayList.portfolioAccruedInterestMinor(providentPlusStocksAllocationTypes)
+            val ppsInterestYesterday = yesterdayList.portfolioAccruedInterestMinor(providentPlusStocksAllocationTypes)
             todayState.copy(
                 portfolioEstimatedTotalMinor = allToday,
                 changeFromYesterdayMinor = allToday - allYesterday,
                 traditionalPortfolioTotalMinor = tradToday,
-                traditionalChangeFromYesterdayMinor = tradToday - tradYesterday,
+                traditionalChangeFromYesterdayMinor = tradInterestToday - tradInterestYesterday,
                 providentPlusStocksPortfolioTotalMinor = ppsToday,
-                providentPlusStocksChangeFromYesterdayMinor = ppsToday - ppsYesterday,
+                providentPlusStocksChangeFromYesterdayMinor = ppsInterestToday - ppsInterestYesterday,
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DashboardUiState())
 }

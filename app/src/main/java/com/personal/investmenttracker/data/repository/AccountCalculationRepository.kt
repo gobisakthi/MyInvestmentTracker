@@ -160,6 +160,13 @@ fun List<AccountWithCalculation>.portfolioEstimatedTotalMinor(
         .filter { it.calculation.status == CalculationStatus.OK }
         .sumOf { it.calculation.estimatedTotalMinor }
 
+fun List<AccountWithCalculation>.portfolioAccruedInterestMinor(
+    includeTypes: Set<InvestmentType>? = null,
+): Long =
+    filter { includeTypes == null || it.summary.type in includeTypes }
+        .filter { it.summary.type.usesInterestAccrual() && it.calculation.status == CalculationStatus.OK }
+        .sumOf { it.calculation.accruedInterestMinor() }
+
 fun List<AccountWithCalculation>.estimatedTotalFor(type: InvestmentType): Long =
     filter { it.summary.type == type && it.calculation.status == CalculationStatus.OK }
         .sumOf { it.calculation.estimatedTotalMinor }

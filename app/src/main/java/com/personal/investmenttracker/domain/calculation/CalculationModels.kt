@@ -47,4 +47,8 @@ data class InterestCalculationResult(
     val provisionalCurrentMonthMinor: Long = 0L,
     val estimatedTotalMinor: Long = 0L,
     val messages: List<String> = emptyList(),
-)
+) {
+    /** Credited + accrued (not yet credited) + current-month provisional — excludes principal and deposits. */
+    fun accruedInterestMinor(): Long =
+        creditedInterestMinor + uncreditedCompletedMonthsInterestMinor + provisionalCurrentMonthMinor
+}

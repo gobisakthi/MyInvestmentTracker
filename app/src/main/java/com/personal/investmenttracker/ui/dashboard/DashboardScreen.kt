@@ -143,6 +143,12 @@ fun DashboardScreen(
                         state.providentPlusStocksChangeFromYesterdayMinor
                     DashboardPortfolioScope.ALL_HOLDINGS -> state.changeFromYesterdayMinor
                 }
+                val changeCaption = when (portfolioScope) {
+                    DashboardPortfolioScope.TRADITIONAL,
+                    DashboardPortfolioScope.PROVIDENT_PLUS_STOCKS,
+                    -> "interest since yesterday"
+                    DashboardPortfolioScope.ALL_HOLDINGS -> "since yesterday"
+                }
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     PremiumHeroCard {
                         Text(
@@ -163,7 +169,7 @@ fun DashboardScreen(
                             style = MaterialTheme.typography.headlineLarge,
                         )
                         Text(
-                            text = formatSignedChangeMinor(portfolioChange) + " since yesterday",
+                            text = formatSignedChangeMinor(portfolioChange) + " $changeCaption",
                             color = when {
                                 portfolioChange > 0L -> GainGreen.copy(alpha = 0.95f)
                                 portfolioChange < 0L -> LossRed.copy(alpha = 0.95f)

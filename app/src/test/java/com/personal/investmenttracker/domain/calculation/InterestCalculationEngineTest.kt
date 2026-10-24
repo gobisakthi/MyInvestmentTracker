@@ -79,6 +79,25 @@ class InterestCalculationEngineTest {
     }
 
     @Test
+    fun dayOverDayChange_accruedInterest_excludesNewMonthDepositPrincipal() {
+        val novemberDepositMinor = 5_000_000L // ₹50,000
+        val input = baseInput(
+            deposits = listOf(MonthlyDepositInput(2026, 11, novemberDepositMinor)),
+        )
+        val oct31 = InterestCalculationEngine.calculate(input, LocalDate.of(2026, 10, 31))
+        val nov1 = InterestCalculationEngine.calculate(input, LocalDate.of(2026, 11, 1))
+        assertEquals(CalculationStatus.OK, oct31.status)
+        assertEquals(CalculationStatus.OK, nov1.status)
+
+        val balanceDelta = nov1.estimatedTotalMinor - oct31.estimatedTotalMinor
+        val interestDelta = nov1.accruedInterestMinor() - oct31.accruedInterestMinor()
+
+        assertTrue(balanceDelta >= novemberDepositMinor)
+        assertTrue(interestDelta < novemberDepositMinor)
+        assertTrue(interestDelta >= 0L)
+    }
+
+    @Test
     fun testE_provisionalInterest_elapsedDaysRule() {
         val input = baseInput()
         val oct24 = InterestCalculationEngine.calculate(input, LocalDate.of(2026, 10, 24))
