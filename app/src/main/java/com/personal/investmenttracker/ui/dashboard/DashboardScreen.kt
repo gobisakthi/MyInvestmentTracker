@@ -24,14 +24,17 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.personal.investmenttracker.domain.model.AccountSummary
 import com.personal.investmenttracker.domain.model.InvestmentType
 import com.personal.investmenttracker.ui.asof.AsOfDateViewModel
 import com.personal.investmenttracker.util.formatInrMinor
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,9 +43,10 @@ fun DashboardScreen(
     asOfDateViewModel: AsOfDateViewModel,
     onAddAccount: () -> Unit,
     onAccountClick: (Long) -> Unit,
-    accounts: List<AccountSummary> = emptyList(),
 ) {
-    val state = dashboardViewModel.uiState
+    val state by dashboardViewModel.uiState.collectAsStateWithLifecycle()
+    val accounts by dashboardViewModel.accounts.collectAsStateWithLifecycle()
+    val balanceDateFormatter = DateTimeFormatter.ofPattern("d MMM yyyy")
 
     Scaffold(
         topBar = {
@@ -68,26 +72,23 @@ fun DashboardScreen(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Portfolio estimated total",
+                    text = "Portfolio recorded total",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = formatInrMinor(state.portfolioTotalMinor),
+                    text = formatInrMinor(state.portfolioRecordedTotalMinor),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Recorded balance (placeholder): ${formatInrMinor(state.recordedBalanceTotalMinor)}",
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = "Sum of opening / recorded balances you entered. Not an official statement total.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = "Estimated accrued interest (placeholder): ${formatInrMinor(state.estimatedAccruedInterestMinor)}",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Text(
-                    text = "Totals will update when accounts and calculations are connected.",
+                    text = "Estimated accrued interest: not calculated yet (Milestone 6+).",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp),
@@ -131,7 +132,7 @@ fun DashboardScreen(
                                 style = MaterialTheme.typography.titleSmall,
                             )
                             Text(
-                                text = "Add a PPF, SSA, or PF account to start tracking. Values show as zero until you enter balances and the calculation engine is enabled.",
+                                text = "Add a PPF, SSA, or PF account. Balances are stored on this device only.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.padding(top = 4.dp),
                             )
@@ -142,7 +143,7 @@ fun DashboardScreen(
                 items(accounts, key = { it.id }) { account ->
                     AccountListItem(
                         account = account,
-                        asOfLabel = asOfDateViewModel.formattedAsOfDate(),
+                        balanceDateLabel = account.balanceEffectiveDate.format(balanceDateFormatter),
                         onClick = { onAccountClick(account.id) },
                     )
                 }
@@ -158,18 +159,9 @@ private fun CategoryCardRow(
     pf: CategoryTotals,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        CategoryCard(
-            title = InvestmentType.PPF.name,
-            totals = ppf,
-        )
-        CategoryCard(
-            title = InvestmentType.SSA.name,
-            totals = ssa,
-        )
-        CategoryCard(
-            title = InvestmentType.PF.name,
-            totals = pf,
-        )
+        CategoryCard(title = InvestmentType.PPF.name, totals = ppf)
+        CategoryCard(title = InvestmentType.SSA.name, totals = ssa)
+        CategoryCard(title = InvestmentType.PF.name, totals = pf)
     }
 }
 
@@ -190,9 +182,14 @@ private fun CategoryCard(title: String, totals: CategoryTotals) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Text(
+                    text = "Recorded total",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             Text(
-                text = formatInrMinor(totals.estimatedTotalMinor),
+                text = formatInrMinor(totals.recordedTotalMinor),
                 style = MaterialTheme.typography.titleMedium,
             )
         }
@@ -202,7 +199,7 @@ private fun CategoryCard(title: String, totals: CategoryTotals) {
 @Composable
 private fun AccountListItem(
     account: AccountSummary,
-    asOfLabel: String,
+    balanceDateLabel: String,
     onClick: () -> Unit,
 ) {
     Card(
@@ -218,12 +215,12 @@ private fun AccountListItem(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = formatInrMinor(account.estimatedCurrentValueMinor),
+                text = "Recorded balance: ${formatInrMinor(account.recordedBalanceMinor)}",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(top = 4.dp),
             )
             Text(
-                text = "As of $asOfLabel",
+                text = "Balance as of $balanceDateLabel",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

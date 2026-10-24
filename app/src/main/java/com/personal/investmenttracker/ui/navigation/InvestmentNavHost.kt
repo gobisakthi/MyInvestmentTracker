@@ -9,11 +9,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.personal.investmenttracker.ui.account.AccountDetailScreen
+import com.personal.investmenttracker.ui.account.AccountDetailViewModel
 import com.personal.investmenttracker.ui.account.AddEditAccountScreen
+import com.personal.investmenttracker.ui.account.AddEditAccountViewModel
 import com.personal.investmenttracker.ui.asof.AsOfDateEffect
 import com.personal.investmenttracker.ui.asof.AsOfDateViewModel
 import com.personal.investmenttracker.ui.dashboard.DashboardScreen
 import com.personal.investmenttracker.ui.dashboard.DashboardViewModel
+import com.personal.investmenttracker.ui.di.investmentViewModelFactory
 import com.personal.investmenttracker.ui.rates.InterestRateHistoryScreen
 import com.personal.investmenttracker.ui.transaction.AddTransactionScreen
 
@@ -21,8 +24,9 @@ import com.personal.investmenttracker.ui.transaction.AddTransactionScreen
 fun InvestmentNavHost(
     modifier: Modifier = Modifier,
     asOfDateViewModel: AsOfDateViewModel = viewModel(),
-    dashboardViewModel: DashboardViewModel = viewModel(),
 ) {
+    val viewModelFactory = investmentViewModelFactory()
+    val dashboardViewModel: DashboardViewModel = viewModel(factory = viewModelFactory)
     AsOfDateEffect(asOfDateViewModel)
     val navController = rememberNavController()
 
@@ -42,8 +46,13 @@ fun InvestmentNavHost(
             )
         }
         composable(Routes.AddAccount) {
+            val addViewModel: AddEditAccountViewModel = viewModel(
+                key = "add_account",
+                factory = viewModelFactory,
+            )
             AddEditAccountScreen(
                 accountId = null,
+                viewModel = addViewModel,
                 onNavigateBack = { navController.popBackStack() },
             )
         }
@@ -51,8 +60,14 @@ fun InvestmentNavHost(
             route = Routes.EditAccount,
             arguments = listOf(navArgument("accountId") { type = NavType.LongType }),
         ) { entry ->
+            val accountId = entry.arguments?.getLong("accountId")
+            val editViewModel: AddEditAccountViewModel = viewModel(
+                key = "edit_account_$accountId",
+                factory = viewModelFactory,
+            )
             AddEditAccountScreen(
-                accountId = entry.arguments?.getLong("accountId"),
+                accountId = accountId,
+                viewModel = editViewModel,
                 onNavigateBack = { navController.popBackStack() },
             )
         }
@@ -61,8 +76,17 @@ fun InvestmentNavHost(
             arguments = listOf(navArgument("accountId") { type = NavType.LongType }),
         ) { entry ->
             val accountId = entry.arguments?.getLong("accountId") ?: return@composable
+            val detailViewModel: AccountDetailViewModel = viewModel(
+                key = "account_detail_$accountId",
+                factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
+                    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                        return viewModelFactory.createAccountDetailViewModel(accountId) as T
+                    }
+                },
+            )
             AccountDetailScreen(
-                accountId = accountId,
+                viewModel = detailViewModel,
                 asOfDateViewModel = asOfDateViewModel,
                 onNavigateBack = { navController.popBackStack() },
                 onEditAccount = { navController.navigate(Routes.editAccount(accountId)) },
