@@ -57,7 +57,7 @@ object InterestCalculationEngine {
         val asOfMonth = YearMonth.from(effectiveAsOf)
         if (asOfMonth.isBefore(firstMonth)) {
             return SimulationResult(
-                buildOk(input, input.openingBalanceMinor, 0L, 0L, 0L, 0L),
+                buildOk(input, input.openingBalanceMinor, 0L, 0L, 0L, 0L, input.openingBalanceMinor, 0),
                 emptyList(),
             )
         }
@@ -71,6 +71,8 @@ object InterestCalculationEngine {
         var fyAccruedInterest = BigDecimal.ZERO
         var totalDepositsIncludedMinor = 0L
         var provisionalCurrentMonthMinor = 0L
+        var eligibleBalanceAtAsOfMinor = 0L
+        var annualRateAtAsOfBasisPoints = 0
         val monthlyPoints = mutableListOf<MonthlyInterestPoint>()
 
         var month = firstMonth
@@ -97,6 +99,10 @@ object InterestCalculationEngine {
                 depositMinor,
             )
             val fullMonthInterest = monthlyInterestMinor(eligibleMinor, rate)
+            if (month == asOfMonth) {
+                eligibleBalanceAtAsOfMinor = eligibleMinor
+                annualRateAtAsOfBasisPoints = rate
+            }
 
             val monthFullyComplete = month.isBefore(asOfMonth) ||
                 (month == asOfMonth && isMonthAccrualComplete(month, effectiveAsOf, input.accrualEndDate))
@@ -148,6 +154,8 @@ object InterestCalculationEngine {
                 creditedInterestMinor,
                 uncreditedMinor,
                 provisionalCurrentMonthMinor,
+                eligibleBalanceAtAsOfMinor,
+                annualRateAtAsOfBasisPoints,
             ),
             monthlyPoints,
         )
@@ -160,6 +168,8 @@ object InterestCalculationEngine {
         creditedInterestMinor: Long,
         uncreditedMinor: Long,
         provisionalMinor: Long,
+        eligibleBalanceMinor: Long,
+        annualRateBasisPoints: Int,
     ): InterestCalculationResult {
         val estimatedTotalMinor = principalMinor + uncreditedMinor + provisionalMinor
         val messages = buildList {
@@ -181,6 +191,8 @@ object InterestCalculationEngine {
             uncreditedCompletedMonthsInterestMinor = uncreditedMinor,
             provisionalCurrentMonthMinor = provisionalMinor,
             estimatedTotalMinor = estimatedTotalMinor,
+            eligibleBalanceMinor = eligibleBalanceMinor,
+            annualRateBasisPoints = annualRateBasisPoints,
             messages = messages,
         )
     }
@@ -221,7 +233,8 @@ object InterestCalculationEngine {
         val accrualEndInMonth = accrualPeriodEndInMonth(month, accrualEnd)
         val effectiveEnd = minOf(asOf, accrualEndInMonth)
         if (effectiveEnd.isBefore(accrualStart)) return 0L
-        return ChronoUnit.DAYS.between(accrualStart, effectiveEnd).coerceAtLeast(0L)
+        // Inclusive accrual days (same convention as [accrualDaysInMonth]).
+        return ChronoUnit.DAYS.between(accrualStart, effectiveEnd) + 1L
     }
 
     private fun accrualDaysInMonth(

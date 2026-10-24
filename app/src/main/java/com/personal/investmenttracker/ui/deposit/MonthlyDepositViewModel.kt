@@ -21,17 +21,37 @@ class MonthlyDepositViewModel(
     var lastError: String? = null
         private set
 
-    fun save(year: Int, month: Int, amountMinor: Long, existingId: Long?, onSuccess: () -> Unit) {
+    fun save(
+        year: Int,
+        month: Int,
+        amountMinor: Long,
+        existingId: Long?,
+        onComplete: (errorMessage: String?) -> Unit,
+    ) {
         viewModelScope.launch {
             repository.upsert(accountId, year, month, amountMinor, existingId)
-                .onSuccess { onSuccess() }
-                .onFailure { lastError = it.message }
+                .onSuccess {
+                    lastError = null
+                    onComplete(null)
+                }
+                .onFailure {
+                    lastError = it.message
+                    onComplete(it.message)
+                }
         }
     }
 
-    fun delete(id: Long, onSuccess: () -> Unit) {
+    fun delete(id: Long, onComplete: (errorMessage: String?) -> Unit) {
         viewModelScope.launch {
-            repository.delete(id).onSuccess { onSuccess() }.onFailure { lastError = it.message }
+            repository.delete(id)
+                .onSuccess {
+                    lastError = null
+                    onComplete(null)
+                }
+                .onFailure {
+                    lastError = it.message
+                    onComplete(it.message)
+                }
         }
     }
 }

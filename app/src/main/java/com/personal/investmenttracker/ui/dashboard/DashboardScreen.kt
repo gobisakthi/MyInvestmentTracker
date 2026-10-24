@@ -143,12 +143,7 @@ fun DashboardScreen(
                         state.providentPlusStocksChangeFromYesterdayMinor
                     DashboardPortfolioScope.ALL_HOLDINGS -> state.changeFromYesterdayMinor
                 }
-                val changeCaption = when (portfolioScope) {
-                    DashboardPortfolioScope.TRADITIONAL,
-                    DashboardPortfolioScope.PROVIDENT_PLUS_STOCKS,
-                    -> "interest since yesterday"
-                    DashboardPortfolioScope.ALL_HOLDINGS -> "since yesterday"
-                }
+                val changeCaption = "est. interest per day"
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     PremiumHeroCard {
                         Text(

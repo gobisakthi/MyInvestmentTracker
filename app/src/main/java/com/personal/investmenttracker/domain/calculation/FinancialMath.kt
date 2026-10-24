@@ -20,6 +20,20 @@ fun monthlyInterestMinor(
         .divide(BigDecimal.valueOf(12L), 12, CALC_MATH_CONTEXT)
 }
 
+/** Calendar-day interest for dashboard (avoids month-length jumps at month boundaries). */
+fun dailyInterestMinor365(
+    eligibleBalanceMinor: Long,
+    annualRateBasisPoints: Int,
+): Long {
+    if (eligibleBalanceMinor == 0L || annualRateBasisPoints == 0) return 0L
+    val balance = BigDecimal.valueOf(eligibleBalanceMinor)
+    val annualRate = BigDecimal.valueOf(annualRateBasisPoints.toLong())
+        .divide(BigDecimal.valueOf(10_000L), 12, CALC_MATH_CONTEXT)
+    return balance.multiply(annualRate)
+        .divide(BigDecimal.valueOf(365L), 12, CALC_MATH_CONTEXT)
+        .toMinorHalfUp()
+}
+
 fun BigDecimal.toMinorHalfUp(): Long =
     setScale(0, CALC_MATH_CONTEXT).longValueExact()
 

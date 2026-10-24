@@ -46,9 +46,15 @@ data class InterestCalculationResult(
     val uncreditedCompletedMonthsInterestMinor: Long = 0L,
     val provisionalCurrentMonthMinor: Long = 0L,
     val estimatedTotalMinor: Long = 0L,
+    /** Eligible balance for the as-of month (for daily interest display). */
+    val eligibleBalanceMinor: Long = 0L,
+    val annualRateBasisPoints: Int = 0,
     val messages: List<String> = emptyList(),
 ) {
     /** Credited + accrued (not yet credited) + current-month provisional — excludes principal and deposits. */
     fun accruedInterestMinor(): Long =
         creditedInterestMinor + uncreditedCompletedMonthsInterestMinor + provisionalCurrentMonthMinor
+
+    fun estimatedDailyInterestMinor(): Long =
+        dailyInterestMinor365(eligibleBalanceMinor, annualRateBasisPoints)
 }

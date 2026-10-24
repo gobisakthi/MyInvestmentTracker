@@ -79,6 +79,50 @@ class InterestCalculationEngineTest {
     }
 
     @Test
+    fun novDeposit_increasesDailyInterest365_onlyMarginally() {
+        val novemberDepositMinor = 1_000_000L // ₹10,000
+        val without = baseInput()
+        val withNov = baseInput(deposits = listOf(MonthlyDepositInput(2026, 11, novemberDepositMinor)))
+        val oct31Base = InterestCalculationEngine.calculate(without, LocalDate.of(2026, 10, 31))
+        val nov1Base = InterestCalculationEngine.calculate(without, LocalDate.of(2026, 11, 1))
+        val nov1With = InterestCalculationEngine.calculate(withNov, LocalDate.of(2026, 11, 1))
+
+        val dailyBefore = oct31Base.estimatedDailyInterestMinor()
+        val dailyNovNoDeposit = nov1Base.estimatedDailyInterestMinor()
+        val dailyNovWithDeposit = nov1With.estimatedDailyInterestMinor()
+        val marginalFromDeposit = dailyNovWithDeposit - dailyNovNoDeposit
+
+        assertEquals(dailyBefore, dailyNovNoDeposit)
+        assertTrue(marginalFromDeposit in 100L..400L)
+        assertTrue(dailyNovWithDeposit - dailyBefore < 500L)
+    }
+
+    @Test
+    fun dayOverDay_accruedInterest_sameAtMonthEnd_and_positiveOnNewMonthStart() {
+        val novemberDepositMinor = 5_000_000L
+        val input = baseInput(
+            deposits = listOf(MonthlyDepositInput(2026, 11, novemberDepositMinor)),
+        )
+        val oct29 = InterestCalculationEngine.calculate(input, LocalDate.of(2026, 10, 29))
+        val oct30 = InterestCalculationEngine.calculate(input, LocalDate.of(2026, 10, 30))
+        val oct31 = InterestCalculationEngine.calculate(input, LocalDate.of(2026, 10, 31))
+        val nov1 = InterestCalculationEngine.calculate(input, LocalDate.of(2026, 11, 1))
+
+        fun interestDayDelta(later: InterestCalculationResult, earlier: InterestCalculationResult): Long =
+            later.accruedInterestMinor() - earlier.accruedInterestMinor()
+
+        val delta2930 = interestDayDelta(oct30, oct29)
+        val delta3031 = interestDayDelta(oct31, oct30)
+        val delta3111 = interestDayDelta(nov1, oct31)
+
+        assertTrue(delta2930 > 0L)
+        assertEquals(delta2930, delta3031)
+        assertTrue(delta3111 > 0L)
+        assertTrue(delta3111 < novemberDepositMinor)
+        assertTrue(delta3111 >= delta2930)
+    }
+
+    @Test
     fun dayOverDayChange_accruedInterest_excludesNewMonthDepositPrincipal() {
         val novemberDepositMinor = 5_000_000L // ₹50,000
         val input = baseInput(

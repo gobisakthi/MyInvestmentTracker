@@ -25,6 +25,12 @@ class MonthlyDepositRepository(
             if (existingId != null) {
                 val existing = dao.getById(existingId)
                     ?: return Result.failure(NoSuchElementException("Deposit not found"))
+                val duplicate = dao.getByAccountYearMonth(accountId, year, month)
+                if (duplicate != null && duplicate.id != existingId) {
+                    return Result.failure(
+                        IllegalArgumentException("Another deposit already exists for that month."),
+                    )
+                }
                 dao.update(
                     existing.copy(
                         year = year,
@@ -35,6 +41,14 @@ class MonthlyDepositRepository(
                 )
                 Result.success(existingId)
             } else {
+                val duplicate = dao.getByAccountYearMonth(accountId, year, month)
+                if (duplicate != null) {
+                    return Result.failure(
+                        IllegalArgumentException(
+                            "A deposit already exists for that month — edit it from the list below.",
+                        ),
+                    )
+                }
                 val id = dao.insert(
                     MonthlyDepositEntity(
                         accountId = accountId,

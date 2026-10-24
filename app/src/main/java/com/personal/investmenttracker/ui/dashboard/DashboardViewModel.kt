@@ -6,7 +6,7 @@ import com.personal.investmenttracker.data.repository.AccountCalculationReposito
 import com.personal.investmenttracker.data.repository.AccountWithCalculation
 import com.personal.investmenttracker.data.repository.countFor
 import com.personal.investmenttracker.data.repository.estimatedTotalFor
-import com.personal.investmenttracker.data.repository.portfolioAccruedInterestMinor
+import com.personal.investmenttracker.data.repository.portfolioEstimatedDailyInterestMinor
 import com.personal.investmenttracker.data.repository.portfolioEstimatedTotalMinor
 import com.personal.investmenttracker.domain.model.providentPlusStocksAllocationTypes
 import com.personal.investmenttracker.domain.model.traditionalAllocationTypes
@@ -17,7 +17,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -62,30 +61,20 @@ class DashboardViewModel(
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val uiState: StateFlow<DashboardUiState> =
-        combine(
-            asOfDate.flatMapLatest { date ->
-                accountCalculationRepository.observeAccountsWithCalculations(flowOf(date))
-            },
-            asOfDate.flatMapLatest { date ->
-                accountCalculationRepository.observeAccountsWithCalculations(flowOf(date.minusDays(1)))
-            },
-        ) { todayList, yesterdayList ->
+        asOfDate.flatMapLatest { date ->
+            accountCalculationRepository.observeAccountsWithCalculations(flowOf(date))
+        }.map { todayList ->
             val todayState = todayList.toDashboardUiState()
-            val allToday = todayList.portfolioEstimatedTotalMinor()
-            val allYesterday = yesterdayList.portfolioEstimatedTotalMinor()
-            val tradToday = todayList.portfolioEstimatedTotalMinor(traditionalAllocationTypes)
-            val tradInterestToday = todayList.portfolioAccruedInterestMinor(traditionalAllocationTypes)
-            val tradInterestYesterday = yesterdayList.portfolioAccruedInterestMinor(traditionalAllocationTypes)
-            val ppsToday = todayList.portfolioEstimatedTotalMinor(providentPlusStocksAllocationTypes)
-            val ppsInterestToday = todayList.portfolioAccruedInterestMinor(providentPlusStocksAllocationTypes)
-            val ppsInterestYesterday = yesterdayList.portfolioAccruedInterestMinor(providentPlusStocksAllocationTypes)
             todayState.copy(
-                portfolioEstimatedTotalMinor = allToday,
-                changeFromYesterdayMinor = allToday - allYesterday,
-                traditionalPortfolioTotalMinor = tradToday,
-                traditionalChangeFromYesterdayMinor = tradInterestToday - tradInterestYesterday,
-                providentPlusStocksPortfolioTotalMinor = ppsToday,
-                providentPlusStocksChangeFromYesterdayMinor = ppsInterestToday - ppsInterestYesterday,
+                portfolioEstimatedTotalMinor = todayList.portfolioEstimatedTotalMinor(),
+                changeFromYesterdayMinor = todayList.portfolioEstimatedDailyInterestMinor(),
+                traditionalPortfolioTotalMinor = todayList.portfolioEstimatedTotalMinor(traditionalAllocationTypes),
+                traditionalChangeFromYesterdayMinor =
+                    todayList.portfolioEstimatedDailyInterestMinor(traditionalAllocationTypes),
+                providentPlusStocksPortfolioTotalMinor =
+                    todayList.portfolioEstimatedTotalMinor(providentPlusStocksAllocationTypes),
+                providentPlusStocksChangeFromYesterdayMinor =
+                    todayList.portfolioEstimatedDailyInterestMinor(providentPlusStocksAllocationTypes),
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DashboardUiState())
 }

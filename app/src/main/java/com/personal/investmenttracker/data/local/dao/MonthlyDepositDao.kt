@@ -34,4 +34,13 @@ interface MonthlyDepositDao {
 
     @Query("SELECT * FROM monthly_deposits WHERE id = :id")
     suspend fun getById(id: Long): MonthlyDepositEntity?
+
+    @Query(
+        """
+        SELECT * FROM monthly_deposits
+        WHERE accountId = :accountId AND year = :year AND month = :month
+        LIMIT 1
+        """,
+    )
+    suspend fun getByAccountYearMonth(accountId: Long, year: Int, month: Int): MonthlyDepositEntity?
 }
