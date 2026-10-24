@@ -58,9 +58,9 @@ import com.personal.investmenttracker.data.repository.AccountWithCalculation
 import com.personal.investmenttracker.domain.calculation.CalculationStatus
 import com.personal.investmenttracker.domain.calculation.MonthlyInterestPoint
 import com.personal.investmenttracker.domain.model.InvestmentType
-import com.personal.investmenttracker.domain.model.dashboardAllocationSubtitle
-import com.personal.investmenttracker.domain.model.providentPlusStocksAllocationTypes
-import com.personal.investmenttracker.domain.model.traditionalAllocationTypes
+import com.personal.investmenttracker.domain.model.AllocationPieGrouping
+import com.personal.investmenttracker.domain.model.PortfolioAssetClass
+import com.personal.investmenttracker.domain.model.dashboardAllocationPages
 import com.personal.investmenttracker.ui.theme.FdColor
 import com.personal.investmenttracker.ui.theme.PfColor
 import com.personal.investmenttracker.ui.theme.RdColor
@@ -76,6 +76,71 @@ import java.time.format.TextStyle
 import java.util.Locale
 import java.util.Locale.US
 data class PieSlice(val label: String, val valueMinor: Long, val color: Color)
+
+fun typePieSliceLabel(type: InvestmentType): String = when (type) {
+    InvestmentType.STOCKS -> "Stocks"
+    InvestmentType.METALS -> "Metals"
+    InvestmentType.REAL_ESTATE -> "Real estate"
+    InvestmentType.NPS -> "NPS"
+    else -> type.name
+}
+
+fun colorForAssetClass(assetClass: PortfolioAssetClass): Color = when (assetClass) {
+    PortfolioAssetClass.SAFE_DEBT -> TealPrimary
+    PortfolioAssetClass.STOCKS -> Color(0xFF7C3AED)
+    PortfolioAssetClass.REAL_ESTATE -> Color(0xFF059669)
+    PortfolioAssetClass.RETIREMENT -> Color(0xFF2563EB)
+    PortfolioAssetClass.METALS -> Color(0xFFD97706)
+}
+
+fun pieSlicesByAssetClass(
+    accounts: List<AccountWithCalculation>,
+    assetClassOrder: List<PortfolioAssetClass>,
+): List<PieSlice> =
+    assetClassOrder.mapNotNull { assetClass ->
+        var totalMinor = 0L
+        for (row in accounts) {
+            if (row.summary.type !in assetClass.types) continue
+            if (row.calculation.status != CalculationStatus.OK) continue
+            val valueMinor = row.calculation.estimatedTotalMinor
+            if (valueMinor <= 0L) continue
+            totalMinor += valueMinor
+        }
+        if (totalMinor <= 0L) return@mapNotNull null
+        PieSlice(
+            label = assetClass.label,
+            valueMinor = totalMinor,
+            color = colorForAssetClass(assetClass),
+        )
+    }
+
+fun pieSlicesByType(
+    accounts: List<AccountWithCalculation>,
+    includeTypes: Set<InvestmentType>?,
+    typeOrder: List<InvestmentType>,
+): List<PieSlice> {
+    val scoped = if (includeTypes == null) {
+        accounts
+    } else {
+        accounts.filter { it.summary.type in includeTypes }
+    }
+    return typeOrder.mapNotNull { type ->
+        var totalMinor = 0L
+        for (row in scoped) {
+            if (row.summary.type != type) continue
+            if (row.calculation.status != CalculationStatus.OK) continue
+            val valueMinor = row.calculation.estimatedTotalMinor
+            if (valueMinor <= 0L) continue
+            totalMinor += valueMinor
+        }
+        if (totalMinor <= 0L) return@mapNotNull null
+        PieSlice(
+            label = typePieSliceLabel(type),
+            valueMinor = totalMinor,
+            color = colorForInvestmentType(type),
+        )
+    }
+}
 
 fun pieSlicesForAccounts(
     accounts: List<AccountWithCalculation>,
@@ -165,23 +230,32 @@ fun AllocationPieChartsPager(
     modifier: Modifier = Modifier,
 ) {
     val pages = remember(accounts) {
-        listOf(
+        dashboardAllocationPages.map { spec ->
+            val slices = when (spec.grouping) {
+                AllocationPieGrouping.BY_ACCOUNT ->
+                    pieSlicesForAccounts(accounts, spec.includeTypes)
+                AllocationPieGrouping.BY_TYPE ->
+                    pieSlicesByType(
+                        accounts = accounts,
+                        includeTypes = spec.includeTypes,
+                        typeOrder = spec.typeOrder.orEmpty(),
+                    )
+                AllocationPieGrouping.BY_ASSET_CLASS ->
+                    pieSlicesByAssetClass(
+                        accounts = accounts,
+                        assetClassOrder = spec.assetClassOrder.orEmpty(),
+                    )
+            }
             AllocationPiePage(
-                title = "Allocation",
-                subtitle = dashboardAllocationSubtitle(0),
-                slices = pieSlicesForAccounts(accounts, traditionalAllocationTypes),
-            ),
-            AllocationPiePage(
-                title = "Allocation",
-                subtitle = dashboardAllocationSubtitle(1),
-                slices = pieSlicesForAccounts(accounts, providentPlusStocksAllocationTypes),
-            ),
-            AllocationPiePage(
-                title = "Allocation",
-                subtitle = dashboardAllocationSubtitle(2),
-                slices = pieSlicesForAccounts(accounts),
-            ),
-        )
+                title = when (spec.grouping) {
+                    AllocationPieGrouping.BY_TYPE -> "Allocation by type"
+                    AllocationPieGrouping.BY_ASSET_CLASS -> "Allocation by asset class"
+                    AllocationPieGrouping.BY_ACCOUNT -> "Allocation"
+                },
+                subtitle = spec.subtitle,
+                slices = slices,
+            )
+        }
     }
     val current = pages[pagerState.currentPage.coerceIn(0, pages.lastIndex)]
 
@@ -192,10 +266,12 @@ fun AllocationPieChartsPager(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        val swipeHint = when (pagerState.currentPage) {
-            0 -> "Swipe for PPF…RD + stocks →"
-            1 -> "Swipe for all holdings →"
-            else -> "Swipe for PPF · SSA · PF · FD · RD →"
+        val swipeHint = when {
+            pages[pagerState.currentPage].title.contains("by asset class") ->
+                "Swipe for by-type view →"
+            pages[pagerState.currentPage].title.contains("by type") ->
+                "Swipe for by asset class →"
+            else -> "Swipe for by type view →"
         }
         Text(
             swipeHint,

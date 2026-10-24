@@ -10,7 +10,7 @@ Offline Android app to track PPF, SSA, PF, FD, RD, stocks, metals, real estate, 
 
 Direct link pattern (replace tag with the latest version):
 
-`https://github.com/gobisakthi/MyInvestmentTracker/releases/download/v1.1.0/MyInvestmentTracker-v1.1.0-debug.apk`
+`https://github.com/gobisakthi/MyInvestmentTracker/releases/download/v1.2.0/MyInvestmentTracker-v1.2.0-debug.apk`
 
 ## Develop
 

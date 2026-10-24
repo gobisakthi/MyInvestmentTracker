@@ -43,6 +43,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.personal.investmenttracker.data.repository.AccountWithCalculation
 import com.personal.investmenttracker.domain.calculation.CalculationStatus
 import com.personal.investmenttracker.domain.model.DASHBOARD_ALLOCATION_PAGE_COUNT
+import com.personal.investmenttracker.domain.model.DashboardPortfolioScope
+import com.personal.investmenttracker.domain.model.dashboardAllocationPage
 import com.personal.investmenttracker.domain.model.dashboardAllocationSubtitle
 import com.personal.investmenttracker.ui.asof.AsOfDateViewModel
 import com.personal.investmenttracker.ui.components.AllocationPieChartsPager
@@ -129,15 +131,17 @@ fun DashboardScreen(
             item {
                 val allocationPagerState = rememberPagerState(pageCount = { DASHBOARD_ALLOCATION_PAGE_COUNT })
                 val page = allocationPagerState.currentPage
-                val portfolioTotal = when (page) {
-                    0 -> state.traditionalPortfolioTotalMinor
-                    1 -> state.providentPlusStocksPortfolioTotalMinor
-                    else -> state.portfolioEstimatedTotalMinor
+                val portfolioScope = dashboardAllocationPage(page).portfolioScope
+                val portfolioTotal = when (portfolioScope) {
+                    DashboardPortfolioScope.TRADITIONAL -> state.traditionalPortfolioTotalMinor
+                    DashboardPortfolioScope.PROVIDENT_PLUS_STOCKS -> state.providentPlusStocksPortfolioTotalMinor
+                    DashboardPortfolioScope.ALL_HOLDINGS -> state.portfolioEstimatedTotalMinor
                 }
-                val portfolioChange = when (page) {
-                    0 -> state.traditionalChangeFromYesterdayMinor
-                    1 -> state.providentPlusStocksChangeFromYesterdayMinor
-                    else -> state.changeFromYesterdayMinor
+                val portfolioChange = when (portfolioScope) {
+                    DashboardPortfolioScope.TRADITIONAL -> state.traditionalChangeFromYesterdayMinor
+                    DashboardPortfolioScope.PROVIDENT_PLUS_STOCKS ->
+                        state.providentPlusStocksChangeFromYesterdayMinor
+                    DashboardPortfolioScope.ALL_HOLDINGS -> state.changeFromYesterdayMinor
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     PremiumHeroCard {
