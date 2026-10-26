@@ -10,11 +10,11 @@ Offline Android app to track PPF, SSA, PF, FD, RD, stocks, metals, real estate, 
 
 Direct link (latest, all phones):
 
-`https://github.com/gobisakthi/MyInvestmentTracker/releases/download/v1.3.1/MyInvestmentTracker-v1.3.1-debug.apk`
+`https://github.com/gobisakthi/MyInvestmentTracker/releases/download/v1.4.0/MyInvestmentTracker-v1.4.0-debug.apk`
 
 **Smaller file** if Chrome sticks at 100% (most Android phones, arm64):
 
-`https://github.com/gobisakthi/MyInvestmentTracker/releases/download/v1.3.1/MyInvestmentTracker-v1.3.1-arm64-debug.apk`
+`https://github.com/gobisakthi/MyInvestmentTracker/releases/download/v1.4.0/MyInvestmentTracker-v1.4.0-arm64-debug.apk`
 
 If download shows 100% forever: wait 2 minutes, then open **Files → Downloads** and tap the APK, or use **Samsung Internet / Firefox**, or the arm64 link above.
 

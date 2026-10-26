@@ -41,6 +41,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.personal.investmenttracker.data.repository.AccountWithCalculation
+import com.personal.investmenttracker.data.repository.AccountDailyInterest
+import com.personal.investmenttracker.data.repository.dailyInterestBreakdown
 import com.personal.investmenttracker.domain.calculation.CalculationStatus
 import com.personal.investmenttracker.domain.model.DASHBOARD_ALLOCATION_PAGE_COUNT
 import com.personal.investmenttracker.domain.model.DashboardPortfolioScope
@@ -70,6 +72,17 @@ fun DashboardScreen(
     val state by dashboardViewModel.uiState.collectAsStateWithLifecycle()
     val accounts by dashboardViewModel.accountsWithCalculations.collectAsStateWithLifecycle()
     var showDatePicker by remember { mutableStateOf(false) }
+    var dailyInterestSheet by remember { mutableStateOf<DailyInterestSheetArgs?>(null) }
+
+    dailyInterestSheet?.let { args ->
+        DailyInterestBreakdownSheet(
+            scopeLabel = args.scopeLabel,
+            asOfLabel = args.asOfLabel,
+            totalDailyMinor = args.totalDailyMinor,
+            lines = args.lines,
+            onDismiss = { dailyInterestSheet = null },
+        )
+    }
 
     if (showDatePicker) {
         val pickerState = rememberDatePickerState()
@@ -144,6 +157,8 @@ fun DashboardScreen(
                     DashboardPortfolioScope.ALL_HOLDINGS -> state.changeFromYesterdayMinor
                 }
                 val changeCaption = "est. interest per day"
+                val interestIncludeTypes = dashboardAllocationPage(page).includeTypes
+                val interestLines = accounts.dailyInterestBreakdown(interestIncludeTypes)
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     PremiumHeroCard {
                         Text(
@@ -163,16 +178,35 @@ fun DashboardScreen(
                             color = Color.White,
                             style = MaterialTheme.typography.headlineLarge,
                         )
-                        Text(
-                            text = formatSignedChangeMinor(portfolioChange) + " $changeCaption",
-                            color = when {
-                                portfolioChange > 0L -> GainGreen.copy(alpha = 0.95f)
-                                portfolioChange < 0L -> LossRed.copy(alpha = 0.95f)
-                                else -> Color.White.copy(alpha = 0.7f)
-                            },
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium,
-                        )
+                        Column(
+                            modifier = Modifier
+                                .clickable {
+                                    dailyInterestSheet = DailyInterestSheetArgs(
+                                        scopeLabel = dashboardAllocationSubtitle(page),
+                                        asOfLabel = asOfDateViewModel.formattedAsOfDate(),
+                                        totalDailyMinor = portfolioChange,
+                                        lines = interestLines,
+                                    )
+                                }
+                                .padding(top = 4.dp),
+                        ) {
+                            Text(
+                                text = formatSignedChangeMinor(portfolioChange) + " $changeCaption",
+                                color = when {
+                                    portfolioChange > 0L -> GainGreen.copy(alpha = 0.95f)
+                                    portfolioChange < 0L -> LossRed.copy(alpha = 0.95f)
+                                    else -> Color.White.copy(alpha = 0.7f)
+                                },
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Medium,
+                            )
+                            Text(
+                                "Tap for breakdown by account",
+                                color = Color.White.copy(alpha = 0.65f),
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                        }
                     }
                     PremiumGlassCard {
                         AllocationPieChartsPager(
@@ -216,6 +250,13 @@ fun DashboardScreen(
         }
     }
 }
+
+private data class DailyInterestSheetArgs(
+    val scopeLabel: String,
+    val asOfLabel: String,
+    val totalDailyMinor: Long,
+    val lines: List<AccountDailyInterest>,
+)
 
 @Composable
 private fun PremiumAccountRow(

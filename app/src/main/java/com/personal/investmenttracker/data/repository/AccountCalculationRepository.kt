@@ -170,9 +170,21 @@ fun List<AccountWithCalculation>.portfolioAccruedInterestMinor(
 fun List<AccountWithCalculation>.portfolioEstimatedDailyInterestMinor(
     includeTypes: Set<InvestmentType>? = null,
 ): Long =
+    dailyInterestBreakdown(includeTypes).sumOf { it.dailyInterestMinor }
+
+data class AccountDailyInterest(
+    val account: AccountWithCalculation,
+    val dailyInterestMinor: Long,
+)
+
+fun List<AccountWithCalculation>.dailyInterestBreakdown(
+    includeTypes: Set<InvestmentType>? = null,
+): List<AccountDailyInterest> =
     filter { includeTypes == null || it.summary.type in includeTypes }
         .filter { it.summary.type.usesInterestAccrual() && it.calculation.status == CalculationStatus.OK }
-        .sumOf { it.calculation.estimatedDailyInterestMinor() }
+        .map { AccountDailyInterest(it, it.calculation.estimatedDailyInterestMinor()) }
+        .filter { it.dailyInterestMinor > 0L }
+        .sortedByDescending { it.dailyInterestMinor }
 
 fun List<AccountWithCalculation>.estimatedTotalFor(type: InvestmentType): Long =
     filter { it.summary.type == type && it.calculation.status == CalculationStatus.OK }
