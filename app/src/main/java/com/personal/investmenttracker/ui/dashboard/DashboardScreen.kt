@@ -43,6 +43,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.personal.investmenttracker.data.repository.AccountWithCalculation
 import com.personal.investmenttracker.data.repository.AccountDailyInterest
 import com.personal.investmenttracker.data.repository.dailyInterestBreakdown
+import com.personal.investmenttracker.data.repository.filteredForAllocationTypes
+import com.personal.investmenttracker.data.repository.sortedByEstimatedTotalDescending
 import com.personal.investmenttracker.domain.calculation.CalculationStatus
 import com.personal.investmenttracker.domain.model.DASHBOARD_ALLOCATION_PAGE_COUNT
 import com.personal.investmenttracker.domain.model.DashboardPortfolioScope
@@ -71,6 +73,12 @@ fun DashboardScreen(
 ) {
     val state by dashboardViewModel.uiState.collectAsStateWithLifecycle()
     val accounts by dashboardViewModel.accountsWithCalculations.collectAsStateWithLifecycle()
+    val allocationPagerState = rememberPagerState(pageCount = { DASHBOARD_ALLOCATION_PAGE_COUNT })
+    val allocationPage = allocationPagerState.currentPage
+    val allocationIncludeTypes = dashboardAllocationPage(allocationPage).includeTypes
+    val visibleAccounts = remember(accounts, allocationPage) {
+        accounts.filteredForAllocationTypes(allocationIncludeTypes).sortedByEstimatedTotalDescending()
+    }
     var showDatePicker by remember { mutableStateOf(false) }
     var dailyInterestSheet by remember { mutableStateOf<DailyInterestSheetArgs?>(null) }
 
@@ -142,8 +150,7 @@ fun DashboardScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
-                val allocationPagerState = rememberPagerState(pageCount = { DASHBOARD_ALLOCATION_PAGE_COUNT })
-                val page = allocationPagerState.currentPage
+                val page = allocationPage
                 val portfolioScope = dashboardAllocationPage(page).portfolioScope
                 val portfolioTotal = when (portfolioScope) {
                     DashboardPortfolioScope.TRADITIONAL -> state.traditionalPortfolioTotalMinor
@@ -228,7 +235,13 @@ fun DashboardScreen(
             }
 
             item {
-                Text("Your accounts", style = MaterialTheme.typography.titleLarge)
+                Text("Accounts in this view", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    dashboardAllocationSubtitle(allocationPage),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
             }
 
             if (accounts.isEmpty()) {
@@ -242,8 +255,19 @@ fun DashboardScreen(
                         )
                     }
                 }
+            } else if (visibleAccounts.isEmpty()) {
+                item {
+                    PremiumGlassCard {
+                        Text("No accounts in this slice", style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Swipe the chart or add a holding that matches this view.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             } else {
-                items(accounts, key = { it.summary.id }) { row ->
+                items(visibleAccounts, key = { it.summary.id }) { row ->
                     PremiumAccountRow(row = row, onClick = { onAccountClick(row.summary.id) })
                 }
             }

@@ -192,3 +192,22 @@ fun List<AccountWithCalculation>.estimatedTotalFor(type: InvestmentType): Long =
 
 fun List<AccountWithCalculation>.countFor(type: InvestmentType): Int =
     count { it.summary.type == type }
+
+fun List<AccountWithCalculation>.filteredForAllocationTypes(
+    includeTypes: Set<InvestmentType>?,
+): List<AccountWithCalculation> =
+    if (includeTypes == null) {
+        this
+    } else {
+        filter { it.summary.type in includeTypes }
+    }
+
+fun List<AccountWithCalculation>.sortedByEstimatedTotalDescending(): List<AccountWithCalculation> =
+    sortedWith(
+        compareByDescending<AccountWithCalculation> { row ->
+            when (row.calculation.status) {
+                CalculationStatus.OK -> row.calculation.estimatedTotalMinor
+                else -> Long.MIN_VALUE
+            }
+        }.thenBy { it.summary.name.lowercase() },
+    )

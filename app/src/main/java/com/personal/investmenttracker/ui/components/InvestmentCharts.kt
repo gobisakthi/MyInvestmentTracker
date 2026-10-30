@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.min
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
+import com.personal.investmenttracker.data.repository.AccountDailyInterest
 import com.personal.investmenttracker.data.repository.AccountWithCalculation
 import com.personal.investmenttracker.domain.calculation.CalculationStatus
 import com.personal.investmenttracker.domain.calculation.MonthlyInterestPoint
@@ -171,6 +172,26 @@ fun pieSlicesForAccounts(
         PieSlice(
             label = row.summary.name,
             valueMinor = row.calculation.estimatedTotalMinor,
+            color = colors[index],
+        )
+    }
+}
+
+fun pieSlicesForDailyInterest(lines: List<AccountDailyInterest>): List<PieSlice> {
+    if (lines.isEmpty()) return emptyList()
+    val sorted = lines.sortedByDescending { it.dailyInterestMinor }
+    val byType = sorted.groupBy { it.account.summary.type }
+    val colorInputs = sorted.map { line ->
+        val peers = byType[line.account.summary.type].orEmpty()
+        val indexAmongType = peers.indexOfFirst { it.account.summary.id == line.account.summary.id }
+            .coerceAtLeast(0)
+        PieSliceColorInput(type = line.account.summary.type, indexAmongType = indexAmongType)
+    }
+    val colors = assignPremiumPieColors(colorInputs)
+    return sorted.mapIndexed { index, line ->
+        PieSlice(
+            label = line.account.summary.name,
+            valueMinor = line.dailyInterestMinor,
             color = colors[index],
         )
     }
